@@ -1,0 +1,108 @@
+import discord
+from discord.ext import commands
+
+bot = commands.Bot(command_prefix='(PREFIX)', intents=discord.Intents.all())
+
+@bot.event
+async def on_ready():
+    print(f'Bot is starting as {bot.user.name} ({bot.user.id})')
+    print('------')
+
+    # Imposta uno stato personalizzato nel profilo del bot
+    await bot.change_presence(activity=discord.Game(name=".help | {} Server".format(len(bot.guilds))))
+
+@bot.command(name='hello', help='Say hello to the bot!')
+async def ciao(ctx):
+    await ctx.send('Hello!')
+    await ctx.message.delete()
+
+@bot.command(name='lockdown', help='Block the channel')
+async def lock(ctx):
+    # Verifica se l'autore del comando ha i permessi di amministratore
+    if ctx.message.author.guild_permissions.administrator:
+        overwrite = discord.PermissionOverwrite(send_messages=False)
+        await ctx.channel.set_permissions(ctx.guild.default_role, overwrite=overwrite)
+        await ctx.send('The channel is now blocked.')
+    else:
+        await ctx.send('You don't have permissions.')
+        await ctx.message.delete()
+
+@bot.command(name='unlock', help='Unlock the channel')
+async def unlock(ctx):
+    # Verifica se l'autore del comando ha i permessi di amministratore
+    if ctx.message.author.guild_permissions.administrator:
+        overwrite = discord.PermissionOverwrite(send_messages=True)
+        await ctx.channel.set_permissions(ctx.guild.default_role, overwrite=overwrite)
+        await ctx.send('The channel is now unlocked.')
+    else:
+        await ctx.send('You don't have permissions.')
+        await ctx.message.delete()
+
+@bot.command(name='mute', help='Mute a member')
+async def mute(ctx, member: discord.Member, duration: int = None):
+    # Verifica se l'autore del comando ha i permessi di amministratore
+    if ctx.message.author.guild_permissions.administrator:
+        mute_role = discord.utils.get(ctx.guild.roles, name='Muted')
+
+        if not mute_role:
+            # Crea il ruolo Muted se non esiste
+            mute_role = await ctx.guild.create_role(name='Muted')
+            for channel in ctx.guild.channels:
+                await channel.set_permissions(mute_role, send_messages=False)
+
+        await member.add_roles(mute_role)
+
+        if duration:
+            await ctx.send(f'{member.mention} is now muted for {duration} seconds.')
+            await asyncio.sleep(duration)
+            await member.remove_roles(mute_role)
+        else:
+            await ctx.send(f'{member.mention} is now muted.')
+    else:
+        await ctx.send('You don't have permissions.')
+
+@bot.command(name='ban', help='Ban a member')
+async def ban(ctx, member: discord.Member):
+    # Verifica se l'autore del comando ha i permessi di amministratore
+    if ctx.message.author.guild_permissions.administrator:
+        await member.ban()
+        await ctx.send(f'{member.mention} is now banned.')
+    else:
+        await ctx.send('You don't have permissions.')
+
+@bot.command(name='partner', help='Do a new partnership')
+async def partner(ctx, member: discord.Member, *, text):
+    # Costruzione del messaggio di partner
+    partner_message = f'New partner with {member.mention}\n'
+    partner_message += f'By {ctx.message.author.mention} - {text}'
+
+    # Invia il messaggio di partner
+    await ctx.send(partner_message)
+    await ctx.message.delete()
+    
+@bot.command(name='clear', help='Eliminate some messagges')
+async def clear(ctx, amount: int):
+    # Verifica se l'autore del comando ha i permessi di amministratore o gestisce i messaggi
+    if ctx.message.author.guild_permissions.administrator or ctx.message.author.guild_permissions.manage_messages:
+        # Elimina i messaggi
+        await ctx.channel.purge(limit=amount + 1)  # +1 per includere il messaggio del comando
+        await ctx.send(f'Elimined {amount} messagges.')
+    else:
+        await ctx.send('You don't have permissions.')
+        await ctx.message.delete()
+
+@bot.command(name='dm', help='Write a dm')
+async def dm(ctx, member: discord.Member, *, message):
+    # Verifica se l'autore del messaggio è un amministratore
+    if ctx.message.author.guild_permissions.administrator:
+        try:
+            await member.send(message)
+            await ctx.send(f'Dm sended to {member.name}')
+        except discord.Forbidden:
+            await ctx.send(f"Error of privacy.")
+    else:
+        await ctx.send("You don't have permissions.")
+        await ctx.message.delete()
+    
+# Sostituisci 'IL_TUO_TOKEN_DEL_BOT' con il token effettivo che hai copiato
+bot.run('YOUR BOT TOKEN')
